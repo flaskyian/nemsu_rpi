@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LED Controller</title>
+</head>
+<body>
+
+    <h1>LED Controller</h1>
+
+    {% if status == "on" %}
+        <h2 style="color: green;">LED is ON</h2>
+    {% elif status == "off" %}
+        <h2 style="color: red;">LED is OFF</h2>
+    {% else %}
+        <h2>Click a button to control the LED</h2>
+    {% endif %}
+
+    <a class="button" href="/on">Turn LED ON</a>
+    <a class="button off" href="/off">Turn LED OFF</a>
+
+</body>
+</html>
