@@ -1,0 +1,158 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Smart Home Remote</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+  <style>
+    body { background: #eef2f6; }
+    .panel { border-radius: 16px; padding: 20px; background: white; box-shadow: 0 12px 30px rgba(12,20,30,0.06); }
+    .device-header { display:flex; align-items:center; justify-content:space-between; }
+    .switch { position: relative; display:inline-block; width:72px; height:36px; }
+    .switch input { display:none; }
+    .slider { position:absolute; inset:0; background:#d8dbe0; border-radius:30px; transition:.28s; }
+    .slider:before { content:""; position:absolute; left:4px; bottom:4px; width:28px; height:28px; background:white; border-radius:50%; box-shadow: 0 6px 14px rgba(2,8,23,0.12); transition:.28s; }
+    input:checked + .slider { background:#00c853; }
+    input:checked + .slider:before { transform: translateX(36px); }
+    .status-dot { width:12px; height:12px; border-radius:50%; display:inline-block; margin-left:8px; vertical-align:middle; background:#d9534f; }
+    .status-dot.on { background:#28a745; }
+    .buzzing { animation: buzz 0.15s linear 4; }
+    @keyframes buzz { 0%{ transform: translateX(0)} 25%{transform:translateX(-2px)} 50%{transform:translateX(2px)} 75%{transform:translateX(-1px)} 100%{transform:translateX(0)} }
+  </style>
+</head>
+<body>
+  <div class="container py-5">
+    <h1 class="text-center mb-4 fw-bold">Smart Home Remote</h1>
+
+    <div class="row g-4">
+
+      <div class="col-md-6">
+        <div class="panel">
+          <div class="device-header mb-3">
+            <div>
+              <h5 class="mb-0">Living Room</h5>
+              <small class="text-muted">Main lights</small>
+            </div>
+            <div>
+              <label class="switch">
+                <input id="switch-living" type="checkbox" />
+                <span class="slider"></span>
+              </label>
+              <span id="dot-living" class="status-dot"></span>
+            </div>
+          </div>
+          <div id="msg-living" class="text-muted small"></div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="panel">
+          <div class="device-header mb-3">
+            <div>
+              <h5 class="mb-0">Kitchen</h5>
+              <small class="text-muted">Overhead lights</small>
+            </div>
+            <div>
+              <label class="switch">
+                <input id="switch-kitchen" type="checkbox" />
+                <span class="slider"></span>
+              </label>
+              <span id="dot-kitchen" class="status-dot"></span>
+            </div>
+          </div>
+          <div id="msg-kitchen" class="text-muted small"></div>
+        </div>
+      </div>
+
+      <div class="col-12">
+        <div class="panel d-flex align-items-center justify-content-between">
+          <div>
+            <h5 class="mb-1">Quick Alert Buzzer</h5>
+            <small class="text-muted">Press to send a short audible alert</small>
+          </div>
+          <div class="text-end">
+            <button id="buzz-btn" class="btn btn-warning btn-lg">Buzz</button>
+            <div id="buzz-msg" class="small text-muted mt-2"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+$(function(){
+  loadStatus();
+
+  $('#switch-living').on('change', function(){
+    const action = $(this).is(':checked') ? 'on' : 'off';
+    toggleDevice('livingroom', action, '#dot-living', '#msg-living');
+  });
+
+  $('#switch-kitchen').on('change', function(){
+    const action = $(this).is(':checked') ? 'on' : 'off';
+    toggleDevice('kitchen', action, '#dot-kitchen', '#msg-kitchen');
+  });
+
+  $('#buzz-btn').on('click', function(){
+    $(this).prop('disabled', true).addClass('buzzing');
+    $.ajax({
+      url: '/alert',
+      method: 'POST',
+      success: function(resp){
+        $('#buzz-msg').text(resp.message || 'Buzzer triggered');
+      },
+      error: function(){ $('#buzz-msg').text('Failed to trigger buzzer'); },
+      complete: function(){
+        setTimeout(function(){
+          $('#buzz-btn').prop('disabled', false).removeClass('buzzing');
+          $('#buzz-msg').fadeOut(500, function(){ $(this).text('').show(); });
+        }, 600);
+      }
+    });
+  });
+
+  setInterval(loadStatus, 4000);
+});
+
+
+function loadStatus(){
+  $.get('/status', function(data){
+
+    $('#switch-living').prop('checked', !!data.livingroom);
+    $('#dot-living').toggleClass('on', !!data.livingroom);
+    $('#msg-living').text(data.livingroom ? 'ON' : 'OFF');
+
+    $('#switch-kitchen').prop('checked', !!data.kitchen);
+    $('#dot-kitchen').toggleClass('on', !!data.kitchen);
+    $('#msg-kitchen').text(data.kitchen ? 'ON' : 'OFF');
+
+    if (data.buzz) {
+      $('#buzz-msg').text('Buzzer active');
+    }
+  });
+}
+
+function toggleDevice(room, action, dotSelector, msgSelector) {
+  $.ajax({
+    url: `/${room}/${action}`,
+    method: 'POST',
+    success: function(resp) {
+      $(dotSelector).toggleClass('on', !!resp.state);
+      $(msgSelector).text(resp.message || (resp.state ? 'ON' : 'OFF'));
+    },
+    error: function() {
+      loadStatus();
+      $(msgSelector).text('Failed to update device');
+    }
+  });
+}
+</script>
+
+</body>
+</html>
